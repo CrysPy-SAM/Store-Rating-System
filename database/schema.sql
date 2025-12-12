@@ -1,10 +1,4 @@
--- Create Database
-CREATE DATABASE store_rating_system;
-
-\c store_rating_system;
-
--- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   name VARCHAR(60) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -17,7 +11,7 @@ CREATE TABLE users (
 );
 
 -- Stores table
-CREATE TABLE stores (
+CREATE TABLE IF NOT EXISTS stores (
   id SERIAL PRIMARY KEY,
   name VARCHAR(60) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -28,7 +22,7 @@ CREATE TABLE stores (
 );
 
 -- Ratings table
-CREATE TABLE ratings (
+CREATE TABLE IF NOT EXISTS ratings (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -38,15 +32,12 @@ CREATE TABLE ratings (
   UNIQUE(user_id, store_id)
 );
 
--- Add foreign key to users table optionally linking to a store
-ALTER TABLE users ADD CONSTRAINT fk_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL;
+-- Add foreign key to users table (if not created with it)
+ALTER TABLE users
+  ADD CONSTRAINT IF NOT EXISTS fk_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL;
 
--- Indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_stores_email ON stores(email);
-CREATE INDEX idx_ratings_user_store ON ratings(user_id, store_id);
-
--- Seed admin user (replace the password value with an actual bcrypt hash)
-INSERT INTO users (name, email, password, address, role)
-VALUES ('System Administrator', 'admin@example.com', '$2b$10$YourHashedPasswordHere', 'Admin Address', 'admin');
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_stores_email ON stores(email);
+CREATE INDEX IF NOT EXISTS idx_ratings_user_store ON ratings(user_id, store_id);
