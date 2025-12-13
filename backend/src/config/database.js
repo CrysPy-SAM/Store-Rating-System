@@ -1,17 +1,19 @@
-// src/config/database.js
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
-  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 5,
   queueLimit: 0,
-  charset: 'utf8mb4'
+
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 });
 
 module.exports = pool;
