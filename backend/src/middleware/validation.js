@@ -1,3 +1,4 @@
+// backend/src/middleware/validation.js - UPDATED WITH OWNER EMAIL VALIDATION
 const { body, validationResult } = require('express-validator');
 
 const validateUser = [
@@ -28,16 +29,26 @@ const validateStore = [
   body('email')
     .trim()
     .isEmail()
-    .withMessage('Please provide a valid email'),
+    .withMessage('Please provide a valid store email'),
   body('address')
     .trim()
     .isLength({ max: 400 })
     .withMessage('Address must not exceed 400 characters'),
-  body('password')
-    .optional()
+  body('ownerEmail')
+    .trim()
+    .isEmail()
+    .withMessage('Please provide a valid owner email')
+    .custom((value, { req }) => {
+      if (value === req.body.email) {
+        throw new Error('Owner email must be different from store email');
+      }
+      return true;
+    }),
+  body('ownerPassword')
     .isLength({ min: 8, max: 16 })
+    .withMessage('Owner password must be between 8 and 16 characters')
     .matches(/^(?=.*[A-Z])(?=.*[!@#$%^&*])/)
-    .withMessage('Password must be between 8-16 chars and contain at least one uppercase and one special character')
+    .withMessage('Owner password must contain at least one uppercase letter and one special character')
 ];
 
 const validateRating = [
@@ -63,7 +74,10 @@ const validatePassword = [
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ 
+      message: 'Validation failed',
+      errors: errors.array() 
+    });
   }
   next();
 };

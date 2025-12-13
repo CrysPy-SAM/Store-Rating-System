@@ -1,4 +1,4 @@
-// frontend/src/components/Store/Dashboard.js - COMPLETELY SEPARATE
+// frontend/src/components/Store/Dashboard.js - COMPLETE WITH USER DETAILS
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { storeAPI } from '../../services/api';
@@ -39,64 +39,177 @@ const StoreDashboard = () => {
     loadRatings();
   }, []);
 
-  const RatingsView = () => (
-    <div className="ratings-dashboard">
-      <div className="rating-summary-card">
-        <h2>📊 Store Performance</h2>
-        <div className="average-rating">
-          <span className="rating-label">Average Rating</span>
-          <div className="rating-value">
-            <span className="rating-number">{avg}</span>
-            <span className="rating-stars">{'⭐'.repeat(Math.round(Number(avg)))}</span>
-          </div>
-          <span className="rating-count">{ratings.length} total ratings</span>
-        </div>
-      </div>
+  const RatingsView = () => {
+    const renderStars = (rating) => {
+      return '⭐'.repeat(Math.round(Number(rating)));
+    };
 
-      <div className="card">
-        <h3>Recent Ratings</h3>
-        {loading ? (
-          <div className="loading-state">Loading...</div>
-        ) : error ? (
-          <div className="error-state">{error}</div>
-        ) : ratings.length ? (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>User Name</th>
-                  <th>Rating</th>
-                  <th>Submitted At</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ratings.map((r, idx) => (
-                  <tr key={r.id || `rating-${idx}`}>
-                    <td>{r.name}</td>
-                    <td>
-                      <span className="rating-badge">
-                        {r.rating} ⭐
-                      </span>
-                    </td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    const getRatingColor = (rating) => {
+      if (rating >= 4) return '#11998e';
+      if (rating >= 3) return '#ffc107';
+      return '#eb3349';
+    };
+
+    return (
+      <div className="ratings-dashboard">
+        {/* Summary Cards */}
+        <div className="stats-grid">
+          <div className="rating-summary-card">
+            <h2>📊 Store Performance</h2>
+            <div className="average-rating">
+              <span className="rating-label">Average Rating</span>
+              <div className="rating-value">
+                <span className="rating-number" style={{ color: getRatingColor(avg) }}>
+                  {Number(avg).toFixed(1)}
+                </span>
+                <span className="rating-stars">
+                  {renderStars(avg)}
+                </span>
+              </div>
+              <span className="rating-count">{ratings.length} total ratings</span>
+            </div>
           </div>
-        ) : (
-          <div className="empty-state">
-            <p>No ratings yet</p>
-            <small>Your store hasn't received any ratings from users.</small>
+
+          <div className="stat-card" style={{ borderLeftColor: '#667eea' }}>
+            <h3>Total Reviews</h3>
+            <div className="stat-value" style={{ color: '#667eea' }}>
+              {ratings.length}
+            </div>
+            <p style={{ marginTop: '8px', color: '#999', fontSize: '14px' }}>
+              Customer Ratings
+            </p>
+          </div>
+
+          <div className="stat-card" style={{ borderLeftColor: '#11998e' }}>
+            <h3>5-Star Ratings</h3>
+            <div className="stat-value" style={{ color: '#11998e' }}>
+              {ratings.filter(r => r.rating === 5).length}
+            </div>
+            <p style={{ marginTop: '8px', color: '#999', fontSize: '14px' }}>
+              Excellent Reviews
+            </p>
+          </div>
+        </div>
+
+        {/* Ratings Table */}
+        <div className="card">
+          <h3>Customer Ratings & Reviews</h3>
+          <p style={{ color: '#666', marginBottom: '16px' }}>
+            View all customers who have rated your store along with their details
+          </p>
+
+          {loading ? (
+            <div className="loading-state">Loading ratings...</div>
+          ) : error ? (
+            <div className="error-state">{error}</div>
+          ) : ratings.length === 0 ? (
+            <div className="empty-state">
+              <p>No ratings yet</p>
+              <small>Your store hasn't received any ratings from users yet.</small>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Customer Name</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Rating</th>
+                    <th>Submitted At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ratings.map((r, idx) => (
+                    <tr key={r.id || `rating-${idx}`}>
+                      <td>
+                        <strong>{r.name}</strong>
+                      </td>
+                      <td>
+                        <a href={`mailto:${r.email}`} style={{ color: '#667eea' }}>
+                          {r.email}
+                        </a>
+                      </td>
+                      <td>{r.address}</td>
+                      <td>
+                        <span 
+                          className="rating-badge" 
+                          style={{ 
+                            background: getRatingColor(r.rating),
+                            color: 'white'
+                          }}
+                        >
+                          {r.rating} ⭐
+                        </span>
+                        <span style={{ marginLeft: '8px', fontSize: '1.2rem' }}>
+                          {renderStars(r.rating)}
+                        </span>
+                      </td>
+                      <td>
+                        {new Date(r.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Rating Distribution */}
+        {ratings.length > 0 && (
+          <div className="card">
+            <h3>Rating Distribution</h3>
+            <div style={{ marginTop: '20px' }}>
+              {[5, 4, 3, 2, 1].map(star => {
+                const count = ratings.filter(r => r.rating === star).length;
+                const percentage = ((count / ratings.length) * 100).toFixed(1);
+                return (
+                  <div key={star} style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    marginBottom: '12px',
+                    gap: '12px'
+                  }}>
+                    <span style={{ minWidth: '60px', fontWeight: '600' }}>
+                      {star} ⭐
+                    </span>
+                    <div style={{ 
+                      flex: 1, 
+                      height: '24px', 
+                      background: '#e1e8ed', 
+                      borderRadius: '12px',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ 
+                        height: '100%', 
+                        width: `${percentage}%`,
+                        background: getRatingColor(star),
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                    <span style={{ minWidth: '80px', color: '#666' }}>
+                      {count} ({percentage}%)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="dashboard-wrapper">
-      {/* Store Owner Header - SEPARATE */}
+      {/* Store Owner Header */}
       <div className="dashboard-header store-header">
         <div className="header-content">
           <div className="header-left">
