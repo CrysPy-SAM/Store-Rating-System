@@ -34,19 +34,19 @@ class User {
     return rows;
   }
 
-  // Find user by email (login / signup)
+  // Find user by email (login / signup) - ✅ Explicitly select all columns including store_id
   static async findByEmail(email) {
     const [rows] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
+      'SELECT id, name, email, password, address, role, store_id FROM users WHERE email = ?',
       [email]
     );
     return rows[0];
   }
 
-  // Find user by ID
+  // Find user by ID - ✅ Explicitly select all columns including store_id
   static async findById(id) {
     const [rows] = await pool.query(
-      'SELECT * FROM users WHERE id = ?',
+      'SELECT id, name, email, password, address, role, store_id FROM users WHERE id = ?',
       [id]
     );
     return rows[0];
@@ -73,10 +73,12 @@ class User {
 
   // Update store_id for store owner
   static async updateStoreId(userId, storeId) {
-    await pool.query(
+    const [result] = await pool.query(
       'UPDATE users SET store_id = ? WHERE id = ?',
       [storeId, userId]
     );
+    console.log(`✅ Updated user ${userId} with store_id ${storeId}`);
+    return result;
   }
 
   // Count users (admin dashboard)

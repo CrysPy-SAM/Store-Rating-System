@@ -1,6 +1,6 @@
-// src/components/User/Dashboard.js
+// frontend/src/components/User/Dashboard.js - COMPLETELY SEPARATE
 import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import StoreListUser from './StoreListUser';
 import UpdatePassword from '../Common/UpdatePassword';
@@ -9,31 +9,41 @@ const UserDashboard = () => {
   const { user, logout } = useAuth();
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>User Dashboard</h1>
-        <div>
-          <span style={{ marginRight: '10px' }}>Welcome, {user?.name}</span>
-          <button className="btn btn-secondary" onClick={logout}>
-            Logout
-          </button>
+    <div className="dashboard-wrapper">
+      {/* User Header - SEPARATE */}
+      <div className="dashboard-header user-header">
+        <div className="header-content">
+          <div className="header-left">
+            <span className="dashboard-icon">👤</span>
+            <h1>User Dashboard</h1>
+          </div>
+          <div className="header-right">
+            <span className="welcome-badge user-badge">USER</span>
+            <span className="user-name">Welcome, {user?.name}</span>
+            <button className="btn btn-danger" onClick={logout}>Logout</button>
+          </div>
         </div>
       </div>
 
-      <div className="container">
-        <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-          <Link to="/user/dashboard" className="btn btn-primary">
-            Stores
-          </Link>
-          <Link to="/user/update-password" className="btn btn-secondary">
-            Update Password
-          </Link>
-        </div>
+      {/* User Navigation */}
+      <div className="dashboard-container">
+        <nav className="dashboard-nav">
+          <a href="/user/dashboard" className="nav-btn">
+            🏪 Browse Stores
+          </a>
+          <a href="/user/update-password" className="nav-btn nav-btn-secondary">
+            🔐 Update Password
+          </a>
+        </nav>
 
-        <Routes>
-          <Route path="/dashboard" element={<StoreListUser />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
-        </Routes>
+        {/* User Content */}
+        <div className="dashboard-content">
+          <Routes>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<StoreListUser />} />
+            <Route path="update-password" element={<UpdatePassword />} />
+          </Routes>
+        </div>
       </div>
     </div>
   );

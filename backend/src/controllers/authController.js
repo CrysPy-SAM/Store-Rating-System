@@ -17,8 +17,19 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('🔐 Login successful for:', {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      store_id: user.store_id
+    });
+
     const token = jwt.sign(
-      { id: user.id, role: user.role, storeId: user.store_id || null },
+      { 
+        id: user.id, 
+        role: user.role, 
+        storeId: user.store_id || null  // ✅ This will now correctly include store_id
+      },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
@@ -28,6 +39,7 @@ exports.login = async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
+        email: user.email,
         role: user.role,
         storeId: user.store_id || null,
       },
@@ -50,7 +62,7 @@ exports.signup = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    const userId = await User.create({
       name,
       email,
       password: hashed,
@@ -60,7 +72,7 @@ exports.signup = async (req, res) => {
 
     res.status(201).json({
       message: 'Signup successful',
-      user: { id: user.id, email: user.email },
+      user: { id: userId, email: email },
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -74,6 +86,9 @@ exports.updatePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     const match = await bcrypt.compare(currentPassword, user.password);
     if (!match) {

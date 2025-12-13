@@ -111,21 +111,30 @@ exports.getMyRatings = async (req, res) => {
       });
     }
 
+    console.log(`📊 Fetching ratings for store ID: ${storeId}`);
+
     // Get all ratings for this store
     const ratings = await Rating.getByStoreId(storeId);
+    
+    console.log(`✅ Found ${ratings.length} ratings:`, ratings);
     
     // Get average rating
     const averageRating = await Rating.getAverage(storeId);
 
-    console.log(`✅ Found ${ratings.length} ratings for store ${storeId}`);
+    console.log(`📈 Average rating: ${averageRating}`);
 
     res.json({
-      ratings,
-      averageRating,
+      success: true,
+      storeId: storeId,
+      ratings: ratings,
+      averageRating: parseFloat(averageRating),
       totalRatings: ratings.length
     });
   } catch (err) {
-    console.error('Store owner ratings error:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Store owner ratings error:', err);
+    res.status(500).json({ 
+      message: 'Server error',
+      error: err.message 
+    });
   }
 };

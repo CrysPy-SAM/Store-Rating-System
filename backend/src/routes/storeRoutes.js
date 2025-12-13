@@ -1,3 +1,4 @@
+// backend/src/routes/storeRoutes.js
 const express = require('express');
 const router = express.Router();
 
@@ -19,9 +20,9 @@ router.get(
   storeController.getStores
 );
 
-// Store owner → ratings
+// Store owner → ratings (FIXED ROUTE)
 router.get(
-  '/my-ratings',
+  '/owner/ratings',
   authenticate,
   authorize('store_owner'),
   storeController.getMyRatings
