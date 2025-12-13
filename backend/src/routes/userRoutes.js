@@ -4,7 +4,7 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// Admin dashboard stats
+
 router.get(
   '/dashboard-stats',
   authenticate,
@@ -12,7 +12,7 @@ router.get(
   userController.getDashboardStats
 );
 
-// Create user (admin)
+
 router.post(
   '/',
   authenticate,
@@ -20,7 +20,7 @@ router.post(
   userController.createUser
 );
 
-// Get all users (admin)
+
 router.get(
   '/',
   authenticate,
@@ -28,7 +28,7 @@ router.get(
   userController.getUsers
 );
 
-// Get user by ID
+
 router.get(
   '/:id',
   authenticate,

@@ -88,9 +88,9 @@ class Rating {
 
   /**
    * Check if user has already rated a store
-   * @param {number} userId - The user ID
-   * @param {number} storeId - The store ID
-   * @returns {Promise<Object|null>} Rating object if exists, null otherwise
+   * @param {number} userId  
+   * @param {number} storeId 
+   * @returns {Promise<Object|null>} 
    */
   static async getUserRating(userId, storeId) {
     const [rows] = await pool.query(
@@ -106,8 +106,8 @@ class Rating {
 
   /**
    * Get all ratings by a specific user
-   * @param {number} userId - The user ID
-   * @returns {Promise<Array>} Array of ratings with store details
+   * @param {number} userId - 
+   * @returns {Promise<Array>} 
    */
   static async getByUserId(userId) {
     const [rows] = await pool.query(

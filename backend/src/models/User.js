@@ -1,7 +1,7 @@
 const pool = require('../config/database');
 
 class User {
-  // Get all users (admin only)
+ 
   static async getAll(filters = {}) {
     let query = `
       SELECT id, name, email, address, role, store_id
@@ -34,7 +34,7 @@ class User {
     return rows;
   }
 
-  // Find user by email (login / signup) - ✅ Explicitly select all columns including store_id
+ 
   static async findByEmail(email) {
     const [rows] = await pool.query(
       'SELECT id, name, email, password, address, role, store_id FROM users WHERE email = ?',
@@ -43,7 +43,7 @@ class User {
     return rows[0];
   }
 
-  // Find user by ID - ✅ Explicitly select all columns including store_id
+ 
   static async findById(id) {
     const [rows] = await pool.query(
       'SELECT id, name, email, password, address, role, store_id FROM users WHERE id = ?',
@@ -52,7 +52,7 @@ class User {
     return rows[0];
   }
 
-  // Create user
+
   static async create(data) {
     const { name, email, password, address, role } = data;
     const [result] = await pool.query(
@@ -63,7 +63,7 @@ class User {
     return result.insertId;
   }
 
-  // Update password
+
   static async updatePassword(userId, hashedPassword) {
     await pool.query(
       'UPDATE users SET password = ? WHERE id = ?',
@@ -71,7 +71,7 @@ class User {
     );
   }
 
-  // Update store_id for store owner
+
   static async updateStoreId(userId, storeId) {
     const [result] = await pool.query(
       'UPDATE users SET store_id = ? WHERE id = ?',
@@ -81,7 +81,7 @@ class User {
     return result;
   }
 
-  // Count users (admin dashboard)
+  
   static async getCount() {
     const [rows] = await pool.query('SELECT COUNT(*) AS count FROM users');
     return rows[0].count;

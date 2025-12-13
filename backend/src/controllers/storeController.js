@@ -1,10 +1,10 @@
-// backend/src/controllers/storeController.js - COMPLETE FIX
+
 const Store = require('../models/Store');
 const Rating = require('../models/Rating');
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 
-/* ================= CREATE STORE (ADMIN) ================= */
+
 exports.createStore = async (req, res) => {
   try {
     const { name, email, address, ownerEmail, ownerPassword } = req.body;
@@ -40,7 +40,7 @@ exports.createStore = async (req, res) => {
     
     // Create store owner user
     const ownerId = await User.create({
-      name: name, // Using store name as owner name
+      name: name, 
       email: ownerEmail,
       password: hashedPassword,
       address: address,
@@ -59,7 +59,7 @@ exports.createStore = async (req, res) => {
 
     console.log(`✅ Created store with ID: ${store.id}`);
 
-    // CRITICAL: Link the store to the owner in users table
+
     await User.updateStoreId(ownerId, store.id);
     console.log(`✅ Linked store owner (ID: ${ownerId}) to store (ID: ${store.id})`);
 
@@ -87,7 +87,7 @@ exports.createStore = async (req, res) => {
   }
 };
 
-/* ================= GET ALL STORES ================= */
+
 exports.getStores = async (req, res) => {
   try {
     const filters = {
@@ -101,7 +101,7 @@ exports.getStores = async (req, res) => {
       order: req.query.sortOrder || 'asc'
     };
 
-    // Pass userId for normal users to get their ratings
+   
     const userId = req.user.role === 'user' ? req.user.id : null;
 
     const stores = await Store.getAll(filters, sort, userId);
@@ -113,7 +113,7 @@ exports.getStores = async (req, res) => {
   }
 };
 
-/* ================= GET STORE OWNER'S RATINGS ================= */
+
 exports.getMyRatings = async (req, res) => {
   try {
     console.log('🔍 Store Owner Request:', {
@@ -138,17 +138,17 @@ exports.getMyRatings = async (req, res) => {
 
     console.log(`📊 Fetching ratings for store ID: ${storeId}`);
 
-    // Get all ratings for this store with user details
+   
     const ratings = await Rating.getByStoreId(storeId);
     
     console.log(`✅ Found ${ratings.length} ratings`);
     
-    // Get average rating
+
     const averageRating = await Rating.getAverage(storeId);
 
     console.log(`📈 Average rating: ${averageRating}`);
 
-    // Get rating distribution
+
     const distribution = await Rating.getDistribution(storeId);
 
     res.json({
@@ -168,7 +168,7 @@ exports.getMyRatings = async (req, res) => {
   }
 };
 
-/* ================= GET STORE BY ID (Optional - for future use) ================= */
+
 exports.getStoreById = async (req, res) => {
   try {
     const storeId = req.params.id;

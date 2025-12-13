@@ -1,4 +1,4 @@
-// backend/src/middleware/validation.js - UPDATED WITH OWNER EMAIL VALIDATION
+
 const { body, validationResult } = require('express-validator');
 
 const validateUser = [

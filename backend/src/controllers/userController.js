@@ -3,7 +3,7 @@ const Store = require('../models/Store');
 const Rating = require('../models/Rating');
 const bcrypt = require('bcrypt');
 
-/* ================= ADMIN DASHBOARD STATS ================= */
+
 exports.getDashboardStats = async (req, res) => {
   try {
     const totalUsers = await User.getCount();
@@ -17,7 +17,7 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-/* ================= CREATE USER (ADMIN ONLY) ================= */
+
 exports.createUser = async (req, res) => {
   try {
     const { name, email, password, address, role } = req.body;
@@ -47,7 +47,7 @@ exports.createUser = async (req, res) => {
   }
 };
 
-/* ================= GET USERS LIST ================= */
+
 exports.getUsers = async (req, res) => {
   try {
     const users = await User.getAll(req.query);
@@ -58,7 +58,7 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-/* ================= GET USER BY ID ================= */
+
 exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
