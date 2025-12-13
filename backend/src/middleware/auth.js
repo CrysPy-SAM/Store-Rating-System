@@ -1,31 +1,25 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
 
-const authenticate = (req, res, next) => {
+function authenticate(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    const header = req.headers.authorization;
+    if (!header) return res.status(401).json({ message: 'Token missing' });
 
-    if (!token) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, email, role, storeId? }
+    const token = header.split(' ')[1];
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
-  } catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+  } catch {
+    res.status(401).json({ message: 'Invalid token' });
   }
-};
+}
 
-const authorize = (...roles) => {
+function authorize(...roles) {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: 'Authentication required' });
-    if (roles.length && !roles.includes(req.user.role)) {
+    if (!roles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Access denied' });
     }
     next();
   };
-};
+}
 
 module.exports = { authenticate, authorize };

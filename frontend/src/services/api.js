@@ -26,8 +26,9 @@ export const userAPI = {
 export const storeAPI = {
   createStore: (data) => api.post('/stores', data),
   getStores: (params) => api.get('/stores', { params }),
-  getStoreById: (id) => api.get(`/stores/${id}`),
-  getMyRatings: () => api.get('/stores/my-ratings'),
+
+  // ✅ FIXED
+  getMyRatings: () => api.get('/stores/owner/ratings'),
 };
 
 export const ratingAPI = {

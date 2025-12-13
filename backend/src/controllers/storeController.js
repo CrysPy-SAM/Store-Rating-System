@@ -1,93 +1,77 @@
 const Store = require('../models/Store');
-const User = require('../models/User');
 const Rating = require('../models/Rating');
-const pool = require('../config/database');
+const User = require('../models/User');
 const bcrypt = require('bcrypt');
+const pool = require('../config/database');
 
-exports.createStore = async (req, res) => {
+/* ================= CREATE STORE ================= */
+async function createStore(req, res) {
   try {
     const { name, email, address, password } = req.body;
 
-    const existingStore = await Store.findByEmail(email);
-    if (existingStore) {
-      return res.status(400).json({ message: 'Store email already registered' });
+    const exists = await Store.findByEmail(email);
+    if (exists) {
+      return res.status(400).json({ message: 'Store already exists' });
     }
 
     const store = await Store.create({ name, email, address });
 
-    // Create store owner user if password provided
-    let owner = null;
     if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      owner = await User.create({
+      const hash = await bcrypt.hash(password, 10);
+
+      const owner = await User.create({
         name,
         email,
-        password: hashedPassword,
+        password: hash,
         address,
         role: 'store_owner',
         storeId: store.id,
       });
 
-      // Update store with owner_id
-      await pool.query('UPDATE stores SET owner_id = $1 WHERE id = $2', [owner.id, store.id]);
+      await pool.query(
+        'UPDATE stores SET owner_id = ? WHERE id = ?',
+        [owner.id, store.id]
+      );
     }
 
-    res.status(201).json({
-      message: 'Store created successfully',
-      store,
-      owner: owner ? { id: owner.id, email: owner.email } : null,
-    });
-  } catch (error) {
-    console.error('Create store error:', error);
+    res.status(201).json({ message: 'Store created', store });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
-};
+}
 
-exports.getStores = async (req, res) => {
+/* ================= GET STORES ================= */
+async function getStores(req, res) {
   try {
-    const { name, address, email, sortField, sortOrder } = req.query;
-    const userId = req.user && req.user.role === 'user' ? req.user.id : null;
-
-    const filters = { name, address, email };
-    const sort = sortField ? { field: sortField, order: sortOrder || 'asc' } : {};
-
-    const stores = await Store.getAll(filters, sort, userId);
+    const stores = await Store.getAll(req.query, req.user?.id || null);
     res.json(stores);
-  } catch (error) {
-    console.error('Get stores error:', error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
-};
+}
 
-exports.getStoreDetails = async (req, res) => {
+/* ================= STORE OWNER RATINGS ================= */
+async function getMyRatings(req, res) {
   try {
-    const store = await Store.findById(req.params.id);
-    if (!store) {
-      return res.status(404).json({ message: 'Store not found' });
-    }
-    res.json(store);
-  } catch (error) {
-    console.error('Get store error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-exports.getStoreRatings = async (req, res) => {
-  try {
-    const storeId = req.user && req.user.storeId;
+    const storeId = req.user.storeId;
     if (!storeId) {
-      return res.status(404).json({ message: 'Store not found for this user' });
+      return res.status(404).json({ message: 'No store linked' });
     }
 
-    const ratings = await Store.getRatingsByStoreId(storeId);
-    const store = await Store.findById(storeId);
+    const ratings = await Rating.getByStoreId(storeId);
+    const avg = await Rating.getAverage(storeId);
 
-    res.json({
-      ratings,
-      averageRating: store.rating,
-    });
-  } catch (error) {
-    console.error('Get store ratings error:', error);
+    res.json({ ratings, averageRating: avg });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
+}
+
+module.exports = {
+  createStore,
+  getStores,
+  getMyRatings,
 };
