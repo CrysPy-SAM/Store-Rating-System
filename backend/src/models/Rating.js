@@ -1,39 +1,37 @@
-// backend/src/models/Rating.js
 const pool = require('../config/database');
 
 class Rating {
-
-  static async create(userId, storeId, rating) {
-    const query = `
-      INSERT INTO ratings (user_id, store_id, rating)
-      VALUES (?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        rating = VALUES(rating)
-    `;
-
-    await pool.query(query, [userId, storeId, rating]);
-
+  static async getByStoreId(storeId) {
     const [rows] = await pool.query(
-      'SELECT * FROM ratings WHERE user_id = ? AND store_id = ?',
-      [userId, storeId]
+      `
+      SELECT u.name, r.rating, r.created_at
+      FROM ratings r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.store_id = ?
+      ORDER BY r.created_at DESC
+      `,
+      [storeId]
     );
+    return rows;
+  }
 
-    return rows[0];
+  static async getAverage(storeId) {
+    const [[row]] = await pool.query(
+      `
+      SELECT COALESCE(AVG(rating), 0) as avgRating
+      FROM ratings
+      WHERE store_id = ?
+      `,
+      [storeId]
+    );
+    return Number(row.avgRating).toFixed(1);
   }
 
   static async getCount() {
-    const [rows] = await pool.query(
-      'SELECT COUNT(*) AS count FROM ratings'
+    const [[row]] = await pool.query(
+      'SELECT COUNT(*) as count FROM ratings'
     );
-    return rows[0].count;
-  }
-
-  static async getUserRating(userId, storeId) {
-    const [rows] = await pool.query(
-      'SELECT * FROM ratings WHERE user_id = ? AND store_id = ?',
-      [userId, storeId]
-    );
-    return rows[0];
+    return row.count;
   }
 }
 

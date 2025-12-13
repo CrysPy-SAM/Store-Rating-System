@@ -1,43 +1,56 @@
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(60) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  address VARCHAR(400) NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'user', 'store_owner')),
-  store_id INTEGER,
+  address TEXT,
+  role ENUM('admin', 'user', 'store_owner') NOT NULL DEFAULT 'user',
+  store_id INT DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL
 );
 
 -- Stores table
 CREATE TABLE IF NOT EXISTS stores (
-  id SERIAL PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(60) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  address VARCHAR(400) NOT NULL,
-  owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  address TEXT,
+  owner_id INT DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Ratings table
 CREATE TABLE IF NOT EXISTS ratings (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
-  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  store_id INT NOT NULL,
+  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, store_id)
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_user_store (user_id, store_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 );
 
--- Add foreign key to users table (if not created with it)
-ALTER TABLE users
-  ADD CONSTRAINT IF NOT EXISTS fk_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL;
+-- Indexes for better performance
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_stores_email ON stores(email);
+CREATE INDEX idx_ratings_store_id ON ratings(store_id);
+CREATE INDEX idx_ratings_user_id ON ratings(user_id);
 
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-CREATE INDEX IF NOT EXISTS idx_stores_email ON stores(email);
-CREATE INDEX IF NOT EXISTS idx_ratings_user_store ON ratings(user_id, store_id);
+-- Insert default admin user (password: Admin@123)
+-- You should change this password after first login
+INSERT INTO users (name, email, password, address, role) 
+VALUES (
+  'System Administrator Account',
+  'admin@system.com',
+  '$2b$10$YourHashedPasswordHere', -- Use bcrypt to hash 'Admin@123'
+  'System Address',
+  'admin'
+) ON DUPLICATE KEY UPDATE id=id;

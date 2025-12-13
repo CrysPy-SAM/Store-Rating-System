@@ -2,76 +2,130 @@ const Store = require('../models/Store');
 const Rating = require('../models/Rating');
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
-const pool = require('../config/database');
 
-/* ================= CREATE STORE ================= */
-async function createStore(req, res) {
+/* ================= CREATE STORE (ADMIN) ================= */
+exports.createStore = async (req, res) => {
   try {
-    const { name, email, address, password } = req.body;
+    const { name, email, address, ownerEmail, ownerPassword } = req.body;
 
-    const exists = await Store.findByEmail(email);
-    if (exists) {
-      return res.status(400).json({ message: 'Store already exists' });
+    // Check if store email already exists
+    const existingStore = await Store.findByEmail(email);
+    if (existingStore) {
+      return res.status(400).json({ message: 'Store email already exists' });
     }
 
-    const store = await Store.create({ name, email, address });
+    let ownerId = null;
 
-    if (password) {
-      const hash = await bcrypt.hash(password, 10);
+    // If owner details provided, create store owner user
+    if (ownerEmail && ownerPassword) {
+      const existingOwner = await User.findByEmail(ownerEmail);
+      if (existingOwner) {
+        return res.status(400).json({ message: 'Owner email already exists' });
+      }
 
-      const owner = await User.create({
-        name,
-        email,
-        password: hash,
-        address,
-        role: 'store_owner',
-        storeId: store.id,
+      const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+      
+      ownerId = await User.create({
+        name: name, // Using store name as owner name
+        email: ownerEmail,
+        password: hashedPassword,
+        address: address,
+        role: 'store_owner'
       });
-
-      await pool.query(
-        'UPDATE stores SET owner_id = ? WHERE id = ?',
-        [owner.id, store.id]
-      );
     }
 
-    res.status(201).json({ message: 'Store created', store });
+    // Create the store
+    const store = await Store.create({
+      name,
+      email,
+      address,
+      ownerId
+    });
+
+    // CRITICAL: Link the store to the owner in BOTH directions
+    if (ownerId) {
+      await User.updateStoreId(ownerId, store.id);
+      console.log(`✅ Linked store owner (ID: ${ownerId}) to store (ID: ${store.id})`);
+    }
+
+    res.status(201).json({
+      message: 'Store created successfully',
+      store: {
+        id: store.id,
+        name: store.name,
+        email: store.email,
+        ownerId: ownerId
+      }
+    });
   } catch (err) {
-    console.error(err);
+    console.error('Create store error:', err);
     res.status(500).json({ message: 'Server error' });
   }
-}
+};
 
-/* ================= GET STORES ================= */
-async function getStores(req, res) {
+/* ================= GET ALL STORES ================= */
+exports.getStores = async (req, res) => {
   try {
-    const stores = await Store.getAll(req.query, req.user?.id || null);
+    const filters = {
+      name: req.query.name,
+      email: req.query.email,
+      address: req.query.address
+    };
+
+    const sort = {
+      field: req.query.sortBy || 'name',
+      order: req.query.sortOrder || 'asc'
+    };
+
+    // Pass userId for normal users to get their ratings
+    const userId = req.user.role === 'user' ? req.user.id : null;
+
+    const stores = await Store.getAll(filters, sort, userId);
+
     res.json(stores);
   } catch (err) {
-    console.error(err);
+    console.error('Get stores error:', err);
     res.status(500).json({ message: 'Server error' });
   }
-}
+};
 
-/* ================= STORE OWNER RATINGS ================= */
-async function getMyRatings(req, res) {
+/* ================= GET STORE OWNER'S RATINGS ================= */
+exports.getMyRatings = async (req, res) => {
   try {
+    console.log('🔍 Store Owner Request:', {
+      userId: req.user.id,
+      role: req.user.role,
+      storeId: req.user.storeId
+    });
+
     const storeId = req.user.storeId;
+
     if (!storeId) {
-      return res.status(404).json({ message: 'No store linked' });
+      console.error('❌ Store ID is missing for user:', req.user.id);
+      return res.status(400).json({ 
+        message: 'Store not linked to this owner. Please contact admin.',
+        debug: {
+          userId: req.user.id,
+          storeIdFromToken: req.user.storeId
+        }
+      });
     }
 
+    // Get all ratings for this store
     const ratings = await Rating.getByStoreId(storeId);
-    const avg = await Rating.getAverage(storeId);
+    
+    // Get average rating
+    const averageRating = await Rating.getAverage(storeId);
 
-    res.json({ ratings, averageRating: avg });
+    console.log(`✅ Found ${ratings.length} ratings for store ${storeId}`);
+
+    res.json({
+      ratings,
+      averageRating,
+      totalRatings: ratings.length
+    });
   } catch (err) {
-    console.error(err);
+    console.error('Store owner ratings error:', err);
     res.status(500).json({ message: 'Server error' });
   }
-}
-
-module.exports = {
-  createStore,
-  getStores,
-  getMyRatings,
 };

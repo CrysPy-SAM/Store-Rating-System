@@ -31,7 +31,14 @@ class Store {
     return rows[0];
   }
 
-  // 🔥 THIS IS THE FIXED METHOD
+  static async findByEmail(email) {
+    const [rows] = await pool.query(
+      'SELECT * FROM stores WHERE email = ?',
+      [email]
+    );
+    return rows[0];
+  }
+
   static async getAll(filters = {}, sort = {}, userId = null) {
     let query = `
       SELECT s.id, s.name, s.email, s.address,
@@ -69,6 +76,13 @@ class Store {
 
     const [rows] = await pool.query(query, values);
     return rows;
+  }
+
+  static async getCount() {
+    const [[row]] = await pool.query(
+      'SELECT COUNT(*) as count FROM stores'
+    );
+    return row.count;
   }
 
 }
