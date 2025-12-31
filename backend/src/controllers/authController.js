@@ -17,18 +17,21 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // ✅ NORMALIZE ROLE TO LOWERCASE
+    const normalizedRole = user.role.toLowerCase();
+
     console.log('🔐 Login successful for:', {
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: normalizedRole,
       store_id: user.store_id
     });
 
     const token = jwt.sign(
       { 
         id: user.id, 
-        role: user.role, 
-        storeId: user.store_id || null  // ✅ This will now correctly include store_id
+        role: normalizedRole,  // ✅ Use lowercase role
+        storeId: user.store_id || null
       },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
@@ -40,7 +43,7 @@ exports.login = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: normalizedRole,  // ✅ Return lowercase role
         storeId: user.store_id || null,
       },
     });
@@ -70,9 +73,27 @@ exports.signup = async (req, res) => {
       role: 'user',
     });
 
+    // ✅ Create token and return user after signup
+    const token = jwt.sign(
+      { 
+        id: userId, 
+        role: 'user',
+        storeId: null
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
     res.status(201).json({
       message: 'Signup successful',
-      user: { id: userId, email: email },
+      token,  // ✅ Return token
+      user: { 
+        id: userId, 
+        email: email,
+        name: name,
+        role: 'user',
+        storeId: null
+      },
     });
   } catch (err) {
     console.error('Signup error:', err);

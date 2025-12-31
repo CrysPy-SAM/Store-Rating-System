@@ -1,4 +1,3 @@
-
 const Store = require('../models/Store');
 const Rating = require('../models/Rating');
 const User = require('../models/User');
@@ -90,6 +89,8 @@ exports.createStore = async (req, res) => {
 
 exports.getStores = async (req, res) => {
   try {
+    console.log('📥 GET /stores request from user:', req.user);
+    
     const filters = {
       name: req.query.name,
       email: req.query.email,
@@ -101,15 +102,25 @@ exports.getStores = async (req, res) => {
       order: req.query.sortOrder || 'asc'
     };
 
-   
-    const userId = req.user.role === 'user' ? req.user.id : null;
+    // ✅ Only pass userId if role is 'user'
+    const userId = req.user && req.user.role === 'user' ? req.user.id : null;
+    
+    console.log('🔍 Filters:', filters);
+    console.log('📊 Sort:', sort);
+    console.log('👤 User ID for ratings:', userId);
 
     const stores = await Store.getAll(filters, sort, userId);
+    
+    console.log('✅ Returning', stores.length, 'stores');
 
     res.json(stores);
   } catch (err) {
-    console.error('Get stores error:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Get stores error:', err);
+    console.error('❌ Error stack:', err.stack);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: process.env.NODE_ENV !== 'production' ? err.message : undefined 
+    });
   }
 };
 

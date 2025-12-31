@@ -16,23 +16,38 @@ const Login = () => {
 
     try {
       const res = await login(form);
-      const role = res.user.role;
+      
+      console.log('✅ Login Response:', res);
+      console.log('✅ User Data:', res.user);
+      console.log('✅ User Role:', res.user?.role);
 
-      console.log('✅ Login successful:', res.user);
+      // ✅ NORMALIZE ROLE (handle both uppercase and lowercase)
+      const role = (res.user?.role || '').toLowerCase();
+      
+      console.log('✅ Normalized Role:', role);
 
-      // Redirect based on role
-      if (role === 'admin') {
-        nav('/admin/dashboard', { replace: true });
-      } else if (role === 'store_owner') {
-        nav('/store/dashboard', { replace: true });
-      } else if (role === 'user') {
-        nav('/user/dashboard', { replace: true });
-      } else {
-        nav('/', { replace: true });
-      }
+      // Small delay to ensure state is updated
+      setTimeout(() => {
+        // Redirect based on role
+        if (role === 'admin') {
+          console.log('🔄 Redirecting to admin dashboard');
+          nav('/admin/dashboard', { replace: true });
+        } else if (role === 'store_owner') {
+          console.log('🔄 Redirecting to store dashboard');
+          nav('/store/dashboard', { replace: true });
+        } else if (role === 'user') {
+          console.log('🔄 Redirecting to user dashboard');
+          nav('/user/dashboard', { replace: true });
+        } else {
+          console.warn('⚠️ Unknown role:', role);
+          nav('/', { replace: true });
+        }
+      }, 100);
+
     } catch (error) {
       console.error('❌ Login error:', error);
-      setErr(error.response?.data?.message || 'Login failed');
+      console.error('❌ Error response:', error.response?.data);
+      setErr(error.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -51,6 +66,7 @@ const Login = () => {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               placeholder="Enter your email"
               required
+              autoComplete="email"
             />
           </div>
           <div className="form-group">
@@ -61,10 +77,25 @@ const Login = () => {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="Enter your password"
               required
+              autoComplete="current-password"
             />
           </div>
-          {err && <div className="error-message">{err}</div>}
-          <button className="btn btn-primary" type="submit" disabled={loading}>
+          {err && (
+            <div className="error-message" style={{ 
+              padding: '12px', 
+              background: '#fee', 
+              borderRadius: '8px',
+              marginBottom: '16px'
+            }}>
+              {err}
+            </div>
+          )}
+          <button 
+            className="btn btn-primary" 
+            type="submit" 
+            disabled={loading}
+            style={{ width: '100%', marginTop: '8px' }}
+          >
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
