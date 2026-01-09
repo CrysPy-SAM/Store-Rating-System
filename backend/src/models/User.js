@@ -1,91 +1,95 @@
-const pool = require('../config/database');
+const mongoose = require('mongoose');
 
-class User {
- 
-  static async getAll(filters = {}) {
-    let query = `
-      SELECT id, name, email, address, role, store_id
-      FROM users
-      WHERE 1=1
-    `;
-    const params = [];
+const storeSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  address: String,
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  }
+}, { timestamps: true });
 
-    if (filters.name) {
-      query += ' AND name LIKE ?';
-      params.push(`%${filters.name}%`);
+/* ================= METHODS ================= */
+
+storeSchema.statics.createStore = async function (data) {
+  return this.create(data);
+};
+
+storeSchema.statics.findByIdWithRating = async function (id) {
+  const res = await this.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: 'ratings',
+        localField: '_id',
+        foreignField: 'store',
+        as: 'ratings'
+      }
+    },
+    {
+      $addFields: {
+        rating: { $ifNull: [{ $avg: '$ratings.rating' }, 0] }
+      }
     }
+  ]);
+  return res[0];
+};
 
-    if (filters.email) {
-      query += ' AND email LIKE ?';
-      params.push(`%${filters.email}%`);
+storeSchema.statics.findByEmail = async function (email) {
+  return this.findOne({ email });
+};
+
+storeSchema.statics.getAll = async function (filters = {}, sort = {}, userId = null) {
+  const pipeline = [];
+
+  if (filters.name) pipeline.push({ $match: { name: new RegExp(filters.name, 'i') } });
+  if (filters.address) pipeline.push({ $match: { address: new RegExp(filters.address, 'i') } });
+
+  pipeline.push({
+    $lookup: {
+      from: 'ratings',
+      localField: '_id',
+      foreignField: 'store',
+      as: 'ratings'
     }
+  });
 
-    if (filters.address) {
-      query += ' AND address LIKE ?';
-      params.push(`%${filters.address}%`);
+  pipeline.push({
+    $addFields: {
+      rating: { $ifNull: [{ $avg: '$ratings.rating' }, 0] }
     }
+  });
 
-    if (filters.role) {
-      query += ' AND role = ?';
-      params.push(filters.role);
-    }
-
-    const [rows] = await pool.query(query, params);
-    return rows;
+  if (userId) {
+    pipeline.push({
+      $addFields: {
+        user_rating: {
+          $let: {
+            vars: {
+              ur: {
+                $filter: {
+                  input: '$ratings',
+                  as: 'r',
+                  cond: { $eq: ['$$r.user', new mongoose.Types.ObjectId(userId)] }
+                }
+              }
+            },
+            in: { $arrayElemAt: ['$$ur.rating', 0] }
+          }
+        }
+      }
+    });
   }
 
- 
-  static async findByEmail(email) {
-    const [rows] = await pool.query(
-      'SELECT id, name, email, password, address, role, store_id FROM users WHERE email = ?',
-      [email]
-    );
-    return rows[0];
-  }
+  pipeline.push({ $sort: { [sort.field || 'name']: sort.order === 'desc' ? -1 : 1 } });
 
- 
-  static async findById(id) {
-    const [rows] = await pool.query(
-      'SELECT id, name, email, password, address, role, store_id FROM users WHERE id = ?',
-      [id]
-    );
-    return rows[0];
-  }
+  return this.aggregate(pipeline);
+};
 
+storeSchema.statics.getCount = async function () {
+  return this.countDocuments();
+};
 
-  static async create(data) {
-    const { name, email, password, address, role } = data;
-    const [result] = await pool.query(
-      `INSERT INTO users (name, email, password, address, role)
-       VALUES (?, ?, ?, ?, ?)`,
-      [name, email, password, address, role]
-    );
-    return result.insertId;
-  }
-
-
-  static async updatePassword(userId, hashedPassword) {
-    await pool.query(
-      'UPDATE users SET password = ? WHERE id = ?',
-      [hashedPassword, userId]
-    );
-  }
-
-
-  static async updateStoreId(userId, storeId) {
-    const [result] = await pool.query(
-      'UPDATE users SET store_id = ? WHERE id = ?',
-      [storeId, userId]
-    );
-    console.log(`✅ Updated user ${userId} with store_id ${storeId}`);
-    return result;
-  }
-
-  
-  static async getCount() {
-    const [rows] = await pool.query('SELECT COUNT(*) AS count FROM users');
-    return rows[0].count;
-  }
-}
-
-module.exports = User;
+module.exports = mongoose.model('Store', storeSchema);

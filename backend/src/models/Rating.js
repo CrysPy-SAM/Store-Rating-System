@@ -1,133 +1,66 @@
-// backend/src/models/Rating.js - WITH USER EMAIL AND ADDRESS
-const pool = require('../config/database');
+const mongoose = require('mongoose');
 
-class Rating {
-  /**
-   * Get all ratings for a specific store with user details
-   * @param {number} storeId - The store ID
-   * @returns {Promise<Array>} Array of rating objects with user details
-   */
-  static async getByStoreId(storeId) {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        r.id,
-        r.rating,
-        r.created_at,
-        u.name,
-        u.email,
-        u.address
-      FROM ratings r
-      JOIN users u ON r.user_id = u.id
-      WHERE r.store_id = ?
-      ORDER BY r.created_at DESC
-      `,
-      [storeId]
-    );
-    return rows;
+const ratingSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  store: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Store',
+    required: true
+  },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 5,
+    required: true
   }
+}, { timestamps: true });
 
-  /**
-   * Get average rating for a store
-   * @param {number} storeId - The store ID
-   * @returns {Promise<string>} Average rating as string with 1 decimal place
-   */
-  static async getAverage(storeId) {
-    const [[row]] = await pool.query(
-      `
-      SELECT COALESCE(AVG(rating), 0) as avgRating
-      FROM ratings
-      WHERE store_id = ?
-      `,
-      [storeId]
-    );
-    return Number(row.avgRating).toFixed(1);
-  }
+// UNIQUE: one rating per user per store
+ratingSchema.index({ user: 1, store: 1 }, { unique: true });
 
-  /**
-   * Get total count of all ratings in the system
-   * @returns {Promise<number>} Total count of ratings
-   */
-  static async getCount() {
-    const [[row]] = await pool.query(
-      'SELECT COUNT(*) as count FROM ratings'
-    );
-    return row.count;
-  }
+/* ================= METHODS ================= */
 
-  /**
-   * Get rating distribution for a store
-   * @param {number} storeId - The store ID
-   * @returns {Promise<Object>} Object with rating distribution
-   */
-  static async getDistribution(storeId) {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        rating,
-        COUNT(*) as count
-      FROM ratings
-      WHERE store_id = ?
-      GROUP BY rating
-      ORDER BY rating DESC
-      `,
-      [storeId]
-    );
-    
-    // Convert to object for easy access
-    const distribution = {
-      5: 0, 4: 0, 3: 0, 2: 0, 1: 0
-    };
-    
-    rows.forEach(row => {
-      distribution[row.rating] = row.count;
-    });
-    
-    return distribution;
-  }
+ratingSchema.statics.getByStoreId = async function (storeId) {
+  return this.find({ store: storeId })
+    .populate('user', 'name email address')
+    .sort({ createdAt: -1 });
+};
 
-  /**
-   * Check if user has already rated a store
-   * @param {number} userId  
-   * @param {number} storeId 
-   * @returns {Promise<Object|null>} 
-   */
-  static async getUserRating(userId, storeId) {
-    const [rows] = await pool.query(
-      `
-      SELECT id, rating, created_at
-      FROM ratings
-      WHERE user_id = ? AND store_id = ?
-      `,
-      [userId, storeId]
-    );
-    return rows[0] || null;
-  }
+ratingSchema.statics.getAverage = async function (storeId) {
+  const res = await this.aggregate([
+    { $match: { store: new mongoose.Types.ObjectId(storeId) } },
+    { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+  ]);
+  return res.length ? res[0].avgRating.toFixed(1) : '0.0';
+};
 
-  /**
-   * Get all ratings by a specific user
-   * @param {number} userId - 
-   * @returns {Promise<Array>} 
-   */
-  static async getByUserId(userId) {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        r.id,
-        r.rating,
-        r.created_at,
-        s.id as store_id,
-        s.name as store_name,
-        s.address as store_address
-      FROM ratings r
-      JOIN stores s ON r.store_id = s.id
-      WHERE r.user_id = ?
-      ORDER BY r.created_at DESC
-      `,
-      [userId]
-    );
-    return rows;
-  }
-}
+ratingSchema.statics.getCount = async function () {
+  return this.countDocuments();
+};
 
-module.exports = Rating;
+ratingSchema.statics.getDistribution = async function (storeId) {
+  const rows = await this.aggregate([
+    { $match: { store: new mongoose.Types.ObjectId(storeId) } },
+    { $group: { _id: '$rating', count: { $sum: 1 } } }
+  ]);
+
+  const dist = { 5:0, 4:0, 3:0, 2:0, 1:0 };
+  rows.forEach(r => dist[r._id] = r.count);
+  return dist;
+};
+
+ratingSchema.statics.getUserRating = async function (userId, storeId) {
+  return this.findOne({ user: userId, store: storeId });
+};
+
+ratingSchema.statics.getByUserId = async function (userId) {
+  return this.find({ user: userId })
+    .populate('store', 'name address')
+    .sort({ createdAt: -1 });
+};
+
+module.exports = mongoose.model('Rating', ratingSchema);
