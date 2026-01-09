@@ -63,4 +63,5 @@ ratingSchema.statics.getByUserId = async function (userId) {
     .sort({ createdAt: -1 });
 };
 
-module.exports = mongoose.model('Rating', ratingSchema);
+module.exports = mongoose.models.Rating || mongoose.model('Rating', ratingSchema);
+

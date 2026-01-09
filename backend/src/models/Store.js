@@ -1,66 +1,92 @@
 const mongoose = require('mongoose');
 
-const ratingSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+const storeSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      minlength: 2,
+      maxlength: 60
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true
+    },
+    address: {
+      type: String
+    },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    }
   },
-  store: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Store',
-    required: true
-  },
-  rating: {
-    type: Number,
-    min: 1,
-    max: 5,
-    required: true
+  { timestamps: true }
+);
+
+/* ================= STATIC METHODS ================= */
+
+storeSchema.statics.getAll = async function (filters = {}, sort = {}, userId = null) {
+  const pipeline = [];
+
+  if (filters.name) {
+    pipeline.push({ $match: { name: new RegExp(filters.name, 'i') } });
   }
-}, { timestamps: true });
+  if (filters.email) {
+    pipeline.push({ $match: { email: new RegExp(filters.email, 'i') } });
+  }
+  if (filters.address) {
+    pipeline.push({ $match: { address: new RegExp(filters.address, 'i') } });
+  }
 
-// UNIQUE: one rating per user per store
-ratingSchema.index({ user: 1, store: 1 }, { unique: true });
+  pipeline.push({
+    $lookup: {
+      from: 'ratings',
+      localField: '_id',
+      foreignField: 'store',
+      as: 'ratings'
+    }
+  });
 
-/* ================= METHODS ================= */
+  pipeline.push({
+    $addFields: {
+      rating: { $ifNull: [{ $avg: '$ratings.rating' }, 0] }
+    }
+  });
 
-ratingSchema.statics.getByStoreId = async function (storeId) {
-  return this.find({ store: storeId })
-    .populate('user', 'name email address')
-    .sort({ createdAt: -1 });
+  if (userId) {
+    pipeline.push({
+      $addFields: {
+        user_rating: {
+          $let: {
+            vars: {
+              ur: {
+                $filter: {
+                  input: '$ratings',
+                  as: 'r',
+                  cond: { $eq: ['$$r.user', new mongoose.Types.ObjectId(userId)] }
+                }
+              }
+            },
+            in: { $arrayElemAt: ['$$ur.rating', 0] }
+          }
+        }
+      }
+    });
+  }
+
+  pipeline.push({
+    $sort: {
+      [sort.field || 'name']: sort.order === 'desc' ? -1 : 1
+    }
+  });
+
+  return this.aggregate(pipeline);
 };
 
-ratingSchema.statics.getAverage = async function (storeId) {
-  const res = await this.aggregate([
-    { $match: { store: new mongoose.Types.ObjectId(storeId) } },
-    { $group: { _id: null, avgRating: { $avg: '$rating' } } }
-  ]);
-  return res.length ? res[0].avgRating.toFixed(1) : '0.0';
-};
+/* ================= EXPORT ================= */
 
-ratingSchema.statics.getCount = async function () {
-  return this.countDocuments();
-};
-
-ratingSchema.statics.getDistribution = async function (storeId) {
-  const rows = await this.aggregate([
-    { $match: { store: new mongoose.Types.ObjectId(storeId) } },
-    { $group: { _id: '$rating', count: { $sum: 1 } } }
-  ]);
-
-  const dist = { 5:0, 4:0, 3:0, 2:0, 1:0 };
-  rows.forEach(r => dist[r._id] = r.count);
-  return dist;
-};
-
-ratingSchema.statics.getUserRating = async function (userId, storeId) {
-  return this.findOne({ user: userId, store: storeId });
-};
-
-ratingSchema.statics.getByUserId = async function (userId) {
-  return this.find({ user: userId })
-    .populate('store', 'name address')
-    .sort({ createdAt: -1 });
-};
-
-module.exports = mongoose.model('Rating', ratingSchema);
+module.exports =
+  mongoose.models.Store || mongoose.model('Store', storeSchema);

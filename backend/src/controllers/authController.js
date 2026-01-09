@@ -7,7 +7,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findByEmail(email);
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -17,21 +17,13 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // ✅ NORMALIZE ROLE TO LOWERCASE
     const normalizedRole = user.role.toLowerCase();
 
-    console.log('🔐 Login successful for:', {
-      id: user.id,
-      email: user.email,
-      role: normalizedRole,
-      store_id: user.store_id
-    });
-
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        role: normalizedRole,  // ✅ Use lowercase role
-        storeId: user.store_id || null
+      {
+        id: user._id,
+        role: normalizedRole,
+        storeId: user.store || null
       },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
@@ -40,12 +32,12 @@ exports.login = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user.id,
+        id: user._id,
         name: user.name,
         email: user.email,
-        role: normalizedRole,  // ✅ Return lowercase role
-        storeId: user.store_id || null,
-      },
+        role: normalizedRole,
+        storeId: user.store || null
+      }
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -58,25 +50,24 @@ exports.signup = async (req, res) => {
   try {
     const { name, email, password, address } = req.body;
 
-    const existing = await User.findByEmail(email);
+    const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const userId = await User.create({
+    const user = await User.create({
       name,
       email,
       password: hashed,
       address,
-      role: 'user',
+      role: 'user'
     });
 
-    // ✅ Create token and return user after signup
     const token = jwt.sign(
-      { 
-        id: userId, 
+      {
+        id: user._id,
         role: 'user',
         storeId: null
       },
@@ -86,14 +77,14 @@ exports.signup = async (req, res) => {
 
     res.status(201).json({
       message: 'Signup successful',
-      token,  // ✅ Return token
-      user: { 
-        id: userId, 
-        email: email,
-        name: name,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
         role: 'user',
         storeId: null
-      },
+      }
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -117,7 +108,10 @@ exports.updatePassword = async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
-    await User.updatePassword(user.id, hashed);
+
+    await User.findByIdAndUpdate(req.user.id, {
+      password: hashed
+    });
 
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
